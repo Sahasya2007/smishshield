@@ -1,0 +1,9 @@
+{
+  "name": "@smishshield/database",
+  "version": "1.0.0",
+  "main": "./src/client.ts",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.48.0",
+    "@smishshield/types": "workspace:*"
+  }
+}

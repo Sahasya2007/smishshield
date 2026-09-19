@@ -1,0 +1,22 @@
+{
+  "name": "@smishshield/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start": "react-native start"
+  },
+  "dependencies": {
+    "@smishshield/core-engine": "workspace:*",
+    "@smishshield/database": "workspace:*",
+    "@smishshield/types": "workspace:*",
+    "react": "18.3.1",
+    "react-native": "0.76.5",
+    "onnxruntime-react-native": "^1.20.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "typescript": "^5.5.4"
+  }
+}
