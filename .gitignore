@@ -7,3 +7,13 @@ dist/
 *.log
 android/app/build/
 .gradle/
+
+# Python & ML Environment
+.venv/
+__pycache__/
+*.pyc
+
+# Local Training Checkpoints & Datasets
+ml/models/*.bin
+ml/models/*.pt
+results/
