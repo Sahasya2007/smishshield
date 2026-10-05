@@ -197,10 +197,16 @@ def make_compute_metrics(languages):
         probs = softmax_spam(np.asarray(logits))
         overall = binary_metrics(labels, probs, 0.5)
 
-        lang_f1 = []
-        for lang in np.unique(languages):
-            m = languages == lang
-            lang_f1.append(binary_metrics(labels[m], probs[m], 0.5)["f1"])
+        # Only compute per-language metrics if the dataset size matches the validation split
+        if len(languages) == len(labels):
+            lang_f1 = []
+            for lang in np.unique(languages):
+                m = languages == lang
+                if np.sum(m) > 0 and len(np.unique(labels[m])) > 1:
+                    lang_f1.append(binary_metrics(labels[m], probs[m], 0.5)["f1"])
+            macro_f1 = float(np.mean(lang_f1)) if lang_f1 else float(overall["f1"])
+        else:
+            macro_f1 = float(overall["f1"])
 
         return {
             "accuracy": overall["accuracy"],
@@ -208,7 +214,7 @@ def make_compute_metrics(languages):
             "recall": overall["recall"],
             "f1": overall["f1"],
             "pr_auc": overall["pr_auc"] if overall["pr_auc"] is not None else 0.0,
-            "lang_macro_f1": float(np.mean(lang_f1)),
+            "lang_macro_f1": macro_f1,
         }
 
     return compute_metrics
