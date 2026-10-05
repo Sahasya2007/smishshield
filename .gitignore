@@ -17,3 +17,8 @@ __pycache__/
 ml/models/*.bin
 ml/models/*.pt
 results/
+ml/models/smish_model/best/*.safetensors
+
+ml/models/smish_model/onnx/*.onnx
+
+ml/models/smish_model/runs/
