@@ -22,3 +22,9 @@ ml/models/smish_model/best/*.safetensors
 ml/models/smish_model/onnx/*.onnx
 
 ml/models/smish_model/runs/
+
+*.safetensors
+*.onnx
+*.bin
+ml/models/smish_model/runs/
+ml/models/smish_model/best/model.safetensors

@@ -1,0 +1,174 @@
+{
+  "generated": "2026-10-05T14:14:58.620494+00:00",
+  "max_length": 128,
+  "input_names": [
+    "input_ids",
+    "attention_mask",
+    "token_type_ids"
+  ],
+  "output_names": [
+    "logits"
+  ],
+  "id2label": {
+    "0": "ham",
+    "1": "spam"
+  },
+  "thresholds": {
+    "fp32": 0.004038591869175434,
+    "int8_retuned": 0.02855372615158558,
+    "int8_retuned_rule": "recall>=0.95",
+    "recommended_for_int8": 0.02855372615158558
+  },
+  "models": {
+    "fp32": {
+      "file": "model.onnx",
+      "size_mb": 1060.8476285934448,
+      "sha256": "30e3bd6514d4f8e72440aa62202d69cc26da33b1562cd421f8492546e8feff1d"
+    },
+    "int8": {
+      "file": "model_int8.onnx",
+      "size_mb": 265.88513469696045,
+      "sha256": "8ff344b987b6ccdab470ca36d21382a9a655178fa1a91fa92b342fe8fbe4c557"
+    }
+  },
+  "quantization": {
+    "type": "dynamic",
+    "weight_type": "QInt8",
+    "per_channel": false
+  },
+  "parity": {
+    "fp32_vs_torch_max_abs_logit_diff": 2.384185791015625e-06,
+    "int8_vs_fp32_max_abs_prob_diff": 0.3150572180747986,
+    "int8_vs_fp32_label_agreement": 1.0
+  },
+  "evaluation": {
+    "val": {
+      "n": 765,
+      "label_agreement": 0.28888888888888886,
+      "fp32": {
+        "precision": 0.8613861386138614,
+        "recall": 0.9666666666666667,
+        "f1": 0.9109947643979057
+      },
+      "int8_at_fp32_threshold": {
+        "precision": 0.13953488372093023,
+        "recall": 1.0,
+        "f1": 0.24489795918367346
+      },
+      "by_language": {
+        "en": {
+          "n": 765,
+          "recall_fp32": 0.9666666666666667,
+          "recall_int8": 1.0
+        }
+      },
+      "int8_at_retuned_threshold": {
+        "precision": 0.7350427350427351,
+        "recall": 0.9555555555555556,
+        "f1": 0.8309178743961353
+      }
+    },
+    "unseen_template_test": {
+      "n": 700,
+      "label_agreement": 0.7028571428571428,
+      "fp32": {
+        "precision": 0.7430997876857749,
+        "recall": 1.0,
+        "f1": 0.8526187576126675
+      },
+      "int8_at_fp32_threshold": {
+        "precision": 0.5154639175257731,
+        "recall": 1.0,
+        "f1": 0.6802721088435374
+      },
+      "by_language": {
+        "en": {
+          "n": 100,
+          "recall_fp32": 1.0,
+          "recall_int8": 1.0
+        },
+        "hi_hinglish": {
+          "n": 100,
+          "recall_fp32": 1.0,
+          "recall_int8": 1.0
+        },
+        "kn": {
+          "n": 100,
+          "recall_fp32": 1.0,
+          "recall_int8": 1.0
+        },
+        "ml": {
+          "n": 100,
+          "recall_fp32": 1.0,
+          "recall_int8": 1.0
+        },
+        "or": {
+          "n": 100,
+          "recall_fp32": 1.0,
+          "recall_int8": 1.0
+        },
+        "ta": {
+          "n": 100,
+          "recall_fp32": 1.0,
+          "recall_int8": 1.0
+        },
+        "te": {
+          "n": 100,
+          "recall_fp32": 1.0,
+          "recall_int8": 1.0
+        }
+      }
+    },
+    "uci_test": {
+      "n": 765,
+      "label_agreement": 0.3032679738562091,
+      "fp32": {
+        "precision": 0.8712871287128713,
+        "recall": 0.9777777777777777,
+        "f1": 0.9214659685863874
+      },
+      "int8_at_fp32_threshold": {
+        "precision": 0.14037854889589904,
+        "recall": 0.9888888888888889,
+        "f1": 0.24585635359116023
+      },
+      "by_language": {
+        "en": {
+          "n": 765,
+          "recall_fp32": 0.9777777777777777,
+          "recall_int8": 0.9888888888888889
+        }
+      }
+    }
+  },
+  "warnings": [],
+  "benchmark_ms": {
+    "fp32": {
+      "batch_1": {
+        "median_ms": 22.89990001008846,
+        "p95_ms": 25.228474981850013
+      },
+      "batch_16": {
+        "median_ms": 246.69274999178015,
+        "p95_ms": 253.24593998957425
+      }
+    },
+    "int8": {
+      "batch_1": {
+        "median_ms": 9.721000009449199,
+        "p95_ms": 11.666989994409958
+      },
+      "batch_16": {
+        "median_ms": 78.31779999833088,
+        "p95_ms": 82.22136999975191
+      }
+    }
+  },
+  "versions": {
+    "python": "3.14.4",
+    "torch": "2.14.1+cpu",
+    "transformers": "4.57.6",
+    "onnx": "1.23.1",
+    "onnxruntime": "1.30.0"
+  }
+}
