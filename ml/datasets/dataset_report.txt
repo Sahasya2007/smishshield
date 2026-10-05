@@ -1,0 +1,129 @@
+MULTILINGUAL SMISHING DATASET REPORT
+============================================================
+Generated : 2026-10-03T14:59:08.145390+00:00
+Seed      : 42
+Python    : 3.14.4  pandas 3.0.6  sklearn 1.9.1
+
+DATASET SIZE
+----------------------------------------
+train                 : 5667
+val                   : 765
+unseen_template_test  : 700
+uci_test              : 765
+
+CLASS DISTRIBUTION (ham=0 / spam=1)
+----------------------------------------
+train                 : ham=4199  spam=1468
+val                   : ham=675  spam=90
+unseen_template_test  : ham=350  spam=350
+uci_test              : ham=675  spam=90
+
+SOURCE DISTRIBUTION
+----------------------------------------
+
+train
+source
+uci          3567
+synthetic    2100
+
+val
+source
+uci    765
+
+unseen_template_test
+source
+synthetic    700
+
+uci_test
+source
+uci    765
+
+LANGUAGE x LABEL
+----------------------------------------
+
+train
+label           0    1
+language              
+en           3299  568
+hi_hinglish   150  150
+kn            150  150
+ml            150  150
+or            150  150
+ta            150  150
+te            150  150
+
+val
+label       0   1
+language         
+en        675  90
+
+unseen_template_test
+label         0   1
+language           
+en           50  50
+hi_hinglish  50  50
+kn           50  50
+ml           50  50
+or           50  50
+ta           50  50
+te           50  50
+
+uci_test
+label       0   1
+language         
+en        675  90
+
+TEMPLATE DIVERSITY (distinct synthetic templates per language)
+----------------------------------------
+
+train
+language
+en             13
+hi_hinglish    10
+kn              4
+ml              4
+or              5
+ta              4
+te              5
+
+val
+(no synthetic rows)
+
+unseen_template_test
+language
+en             4
+hi_hinglish    2
+kn             2
+ml             2
+or             2
+ta             2
+te             2
+
+uci_test
+(no synthetic rows)
+
+OVERLAP REMOVED (exact or normalised match with an earlier split)
+----------------------------------------
+validation vs train         : 700
+synthetic test vs train/val : 0
+uci test vs train/val       : 0
+
+SYNTHETIC SHORTFALLS (generated < target)
+----------------------------------------
+None
+
+WARNINGS
+----------------------------------------
+- [hi_hinglish] label 0: only 7 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.
+- [hi_hinglish] label 1: only 7 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.
+- [or] label 0: only 5 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.
+- [or] label 1: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.
+- [te] label 0: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.
+- [te] label 1: only 5 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.
+- [ta] label 0: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.
+- [ta] label 1: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.
+- [kn] label 0: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.
+- [kn] label 1: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.
+- [ml] label 0: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.
+- [ml] label 1: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.
+- No hand-labelled real test set found at real_test_labeled.csv. Synthetic and UCI scores will NOT reflect real multilingual performance. Add a CSV with columns text,label,language (aim for >= 30 per language and class).

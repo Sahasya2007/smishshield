@@ -1,0 +1,59 @@
+{
+  "generated": "2026-10-03T14:59:08.145390+00:00",
+  "seed": 42,
+  "versions": {
+    "python": "3.14.4",
+    "pandas": "3.0.6",
+    "sklearn": "1.9.1"
+  },
+  "config": {
+    "train_synthetic_per_language": 300,
+    "val_synthetic_per_language": 100,
+    "test_synthetic_per_language": 100,
+    "synth_spam_ratio": 0.5,
+    "uci_fractions": {
+      "train": 0.7,
+      "val": 0.15,
+      "test": 0.15
+    }
+  },
+  "files": {
+    "train.csv": {
+      "rows": 5667,
+      "sha256": "9a37107fe65825834c90cef0cd02d30b6c8dee0ced20ef0397fcc4346ee5bf30"
+    },
+    "val.csv": {
+      "rows": 765,
+      "sha256": "8a2d71bfd8a16974c29625c06bb5cc951c9a2db02403862285fcfd54dc6f91d1"
+    },
+    "unseen_template_test.csv": {
+      "rows": 700,
+      "sha256": "1075ff6c0692e6d42352b99f7faa230b6da704f845fdfa49b914718fccdf54a9"
+    },
+    "uci_test.csv": {
+      "rows": 765,
+      "sha256": "4b9d5a868725da9ddda82ce26739c7bb8f7161b32db70e19023ed7e8f9dd2ad3"
+    }
+  },
+  "overlap_removed": {
+    "validation vs train": 700,
+    "synthetic test vs train/val": 0,
+    "uci test vs train/val": 0
+  },
+  "shortfalls": [],
+  "warnings": [
+    "[hi_hinglish] label 0: only 7 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.",
+    "[hi_hinglish] label 1: only 7 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.",
+    "[or] label 0: only 5 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.",
+    "[or] label 1: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.",
+    "[te] label 0: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.",
+    "[te] label 1: only 5 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.",
+    "[ta] label 0: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.",
+    "[ta] label 1: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.",
+    "[kn] label 0: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.",
+    "[kn] label 1: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.",
+    "[ml] label 0: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.",
+    "[ml] label 1: only 4 templates -> 1 val + 1 test template. Add more templates for meaningful generalisation numbers.",
+    "No hand-labelled real test set found at real_test_labeled.csv. Synthetic and UCI scores will NOT reflect real multilingual performance. Add a CSV with columns text,label,language (aim for >= 30 per language and class)."
+  ]
+}
