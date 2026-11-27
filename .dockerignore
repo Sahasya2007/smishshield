@@ -1,0 +1,7 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+ml/models/smish_model/runs/
+ml/models/smish_model/best/

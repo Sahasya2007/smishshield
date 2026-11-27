@@ -8,6 +8,7 @@ Features
   exists, with automatic fallback to `transformers.AutoTokenizer`
 - Length-sorted micro-batching (bounded memory, minimal padding waste)
 - Strict input validation, character clipping, optional Unicode normalization
+- Post-model deterministic transactional guardrails for Indian DLT SMS patterns
 - Explicit ORT thread control, warm-up, thread-safe tokenization
 - Binary softmax or single-logit sigmoid heads
 - Model version / variant in every result, structured logging
@@ -36,6 +37,8 @@ from typing import Any, Sequence
 
 import numpy as np
 import onnxruntime as ort
+
+from ml.heuristics import apply_transactional_guard
 
 logger = logging.getLogger("smish.inference")
 
@@ -377,14 +380,16 @@ class SmishClassifier:
 
         results: list[dict] = []
         for i, p in enumerate(probs):
-            p = float(p)
+            adjusted_p, guard_rule = apply_transactional_guard(prepared[i], float(p))
             item = {
-                "is_smishing": p >= self.threshold,
-                "spam_probability": round(p, 4),
+                "is_smishing": adjusted_p >= self.threshold,
+                "spam_probability": round(adjusted_p, 4),
                 "threshold": self.threshold,
                 "model_version": self.model_version,
                 "variant": self.variant,
             }
+            if guard_rule:
+                item["guard_applied"] = guard_rule
             if echo_text:
                 item["text"] = prepared[i]
             results.append(item)
