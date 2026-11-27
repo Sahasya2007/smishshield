@@ -6,8 +6,10 @@ Run (example):
 
 Environment variables
 ---------------------
-API_KEYS                    Comma-separated valid keys (required unless ALLOW_NO_AUTH=1)
-ALLOW_NO_AUTH               "1" to disable auth (local development only)
+APP_ENV                     "local" | "staging" | "production"         (default "production")
+API_KEYS                    Comma-separated valid keys (required unless ALLOW_NO_AUTH=1 & APP_ENV=local)
+ALLOW_NO_AUTH               "1" to disable auth (only honored when APP_ENV=local)
+RATE_LIMIT_PER_MIN          Max /api/v1/scan calls per minute per client (default 60, 0 to disable)
 MAX_CONCURRENT_INFERENCES   In-flight inference calls per worker       (default 4)
 QUEUE_TIMEOUT_S             Seconds to wait for a free slot before 503 (default 2.0)
 MAX_BODY_BYTES              Hard request-body cap in bytes             (default 2_000_000)
@@ -17,22 +19,22 @@ INTRA_OP_THREADS            ORT threads per worker. With W workers on C cores,
                             use roughly C / W.
 ENABLE_DOCS                 "0" to hide /docs and /redoc in production
 
-Not handled here (do these at the gateway / reverse proxy):
-TLS, per-client rate limiting, CORS policy, IP allow-listing.
-
 Privacy: message bodies are never logged. Only counts, timings and request IDs.
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
 import re
 import secrets
+import threading
 import time
 import uuid
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Annotated
@@ -62,8 +64,10 @@ _SAFE_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True)
 class Settings:
+    app_env: str
     api_keys: tuple[str, ...]
     allow_no_auth: bool
+    rate_limit_per_min: int
     max_concurrent: int
     queue_timeout_s: float
     max_body_bytes: int
@@ -77,8 +81,10 @@ def load_settings() -> Settings:
     keys = tuple(k.strip() for k in os.getenv("API_KEYS", "").split(",") if k.strip())
     threads = os.getenv("INTRA_OP_THREADS")
     return Settings(
+        app_env=os.getenv("APP_ENV", "production").strip().lower(),
         api_keys=keys,
         allow_no_auth=os.getenv("ALLOW_NO_AUTH", "0") == "1",
+        rate_limit_per_min=int(os.getenv("RATE_LIMIT_PER_MIN", "60")),
         max_concurrent=int(os.getenv("MAX_CONCURRENT_INFERENCES", "4")),
         queue_timeout_s=float(os.getenv("QUEUE_TIMEOUT_S", "2.0")),
         max_body_bytes=int(os.getenv("MAX_BODY_BYTES", "2000000")),
@@ -93,9 +99,49 @@ SETTINGS = load_settings()
 
 
 # --------------------------------------------------------------------------- #
+# Sliding-Window Rate Limiter (zero external dependencies)
+# --------------------------------------------------------------------------- #
+class SlidingWindowRateLimiter:
+    """Thread-safe in-memory per-client sliding-window rate limiter."""
+
+    def __init__(self, max_requests: int, window_seconds: float = 60.0):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self._hits: dict[str, deque[float]] = defaultdict(deque)
+        self._lock = threading.Lock()
+
+    def check(self, client_key: str) -> tuple[bool, int]:
+        """Returns (allowed, retry_after_seconds)."""
+        if self.max_requests <= 0:
+            return True, 0
+
+        now = time.monotonic()
+        cutoff = now - self.window_seconds
+
+        with self._lock:
+            bucket = self._hits[client_key]
+            while bucket and bucket[0] <= cutoff:
+                bucket.popleft()
+
+            if len(bucket) >= self.max_requests:
+                retry_after = max(1, int(self.window_seconds - (now - bucket[0])) + 1)
+                return False, retry_after
+
+            bucket.append(now)
+            return True, 0
+
+
+# --------------------------------------------------------------------------- #
 # Schemas
 # --------------------------------------------------------------------------- #
-Message = Annotated[str, StringConstraints(max_length=MAX_CHARS_PER_MESSAGE)]
+Message = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=MAX_CHARS_PER_MESSAGE,
+    ),
+]
 
 
 class ScanRequest(BaseModel):
@@ -129,6 +175,7 @@ class MessageResult(BaseModel):
     threshold: float
     model_version: str
     variant: str
+    guard_applied: str | None = None
 
 
 class ScanResponse(BaseModel):
@@ -229,12 +276,17 @@ class RequestContextMiddleware:
 # --------------------------------------------------------------------------- #
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if SETTINGS.allow_no_auth and SETTINGS.app_env != "local":
+        raise RuntimeError(
+            f"Refusing to start with ALLOW_NO_AUTH=1 when APP_ENV={SETTINGS.app_env!r}. "
+            "Set APP_ENV=local for unauthenticated local development, or provide API_KEYS."
+        )
     if not SETTINGS.api_keys and not SETTINGS.allow_no_auth:
         raise RuntimeError(
-            "No API_KEYS configured. Set API_KEYS, or ALLOW_NO_AUTH=1 for local dev."
+            "No API_KEYS configured. Set API_KEYS, or ALLOW_NO_AUTH=1 with APP_ENV=local."
         )
     if SETTINGS.allow_no_auth:
-        logger.warning("Authentication is DISABLED (ALLOW_NO_AUTH=1)")
+        logger.warning("Authentication is DISABLED (ALLOW_NO_AUTH=1, APP_ENV=local)")
 
     kwargs = {"use_int8": SETTINGS.use_int8, "intra_op_threads": SETTINGS.intra_op_threads}
     if SETTINGS.model_dir:
@@ -243,15 +295,22 @@ async def lifespan(app: FastAPI):
     # Model load + warm-up happen once, off the event loop.
     app.state.classifier = await run_in_threadpool(lambda: SmishClassifier(**kwargs))
     app.state.inference_sem = asyncio.Semaphore(SETTINGS.max_concurrent)
-    app.state.stats = {"requests": 0, "messages": 0, "flagged": 0, "rejected_busy": 0}
-    logger.info("SmishShield API ready")
+    app.state.rate_limiter = SlidingWindowRateLimiter(SETTINGS.rate_limit_per_min)
+    app.state.stats = {
+        "requests": 0,
+        "messages": 0,
+        "flagged": 0,
+        "rejected_busy": 0,
+        "rejected_rate_limit": 0,
+    }
+    logger.info("SmishShield API ready (env=%s)", SETTINGS.app_env)
     yield
     app.state.classifier = None
 
 
 app = FastAPI(
     title="SmishShield API",
-    version="1.1.0",
+    version="1.2.0",
     description="Multilingual smishing and fraud detection engine",
     lifespan=lifespan,
     docs_url="/docs" if SETTINGS.enable_docs else None,
@@ -294,16 +353,42 @@ async def unhandled_handler(request: Request, exc: Exception):
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
-async def require_api_key(key: str | None = Security(_api_key_header)) -> None:
-    if SETTINGS.allow_no_auth and not SETTINGS.api_keys:
+async def require_api_key(
+    request: Request, key: str | None = Security(_api_key_header)
+) -> None:
+    if SETTINGS.allow_no_auth and SETTINGS.app_env == "local" and not SETTINGS.api_keys:
+        request.state.client_id = request.client.host if request.client else "local"
         return
     if key:
         provided = key.encode()
         # Check every key (no early exit) with constant-time comparison.
         matches = [secrets.compare_digest(provided, k.encode()) for k in SETTINGS.api_keys]
         if any(matches):
+            # Hash key for rate-limiter bucket so raw secrets never sit in memory keys
+            request.state.client_id = hashlib.sha256(provided).hexdigest()[:16]
             return
     raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+
+async def enforce_rate_limit(request: Request) -> None:
+    limiter: SlidingWindowRateLimiter | None = getattr(
+        request.app.state, "rate_limiter", None
+    )
+    if limiter is None:
+        return
+    client_id = getattr(
+        request.state,
+        "client_id",
+        request.client.host if request.client else "unknown",
+    )
+    allowed, retry_after = limiter.check(client_id)
+    if not allowed:
+        request.app.state.stats["rejected_rate_limit"] += 1
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded. Please retry later.",
+            headers={"Retry-After": str(retry_after)},
+        )
 
 
 def get_classifier(request: Request) -> SmishClassifier:
@@ -341,7 +426,7 @@ def ready(request: Request):
     "/api/v1/scan",
     response_model=ScanResponse,
     response_model_exclude_none=True,
-    dependencies=[Depends(require_api_key)],
+    dependencies=[Depends(require_api_key), Depends(enforce_rate_limit)],
     tags=["scan"],
 )
 async def scan_messages(
@@ -381,6 +466,7 @@ async def scan_messages(
             threshold=pred["threshold"],
             model_version=pred["model_version"],
             variant=pred["variant"],
+            guard_applied=pred.get("guard_applied"),
         )
         for i, pred in enumerate(predictions)
     ]

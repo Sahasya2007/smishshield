@@ -8,6 +8,7 @@ Features
   exists, with automatic fallback to `transformers.AutoTokenizer`
 - Length-sorted micro-batching (bounded memory, minimal padding waste)
 - Strict input validation, character clipping, optional Unicode normalization
+- Empty/whitespace short-circuiting to prevent blank-token false positives
 - Post-model deterministic transactional guardrails for Indian DLT SMS patterns
 - Explicit ORT thread control, warm-up, thread-safe tokenization
 - Binary softmax or single-logit sigmoid heads
@@ -373,27 +374,50 @@ class SmishClassifier:
         if not prepared:
             return []
 
-        start = time.perf_counter()
-        probs = self._predict_proba(prepared, batch_size)
-        elapsed_ms = (time.perf_counter() - start) * 1e3
-        logger.debug("Predicted %d texts in %.1f ms", len(prepared), elapsed_ms)
+        results: list[dict | None] = [None] * len(prepared)
+        non_empty_indices: list[int] = []
+        non_empty_texts: list[str] = []
 
-        results: list[dict] = []
-        for i, p in enumerate(probs):
-            adjusted_p, guard_rule = apply_transactional_guard(prepared[i], float(p))
-            item = {
-                "is_smishing": adjusted_p >= self.threshold,
-                "spam_probability": round(adjusted_p, 4),
-                "threshold": self.threshold,
-                "model_version": self.model_version,
-                "variant": self.variant,
-            }
-            if guard_rule:
-                item["guard_applied"] = guard_rule
-            if echo_text:
-                item["text"] = prepared[i]
-            results.append(item)
-        return results
+        for i, text in enumerate(prepared):
+            if not text.strip():
+                item: dict[str, Any] = {
+                    "is_smishing": False,
+                    "spam_probability": 0.0,
+                    "threshold": self.threshold,
+                    "model_version": self.model_version,
+                    "variant": self.variant,
+                }
+                if echo_text:
+                    item["text"] = text
+                results[i] = item
+            else:
+                non_empty_indices.append(i)
+                non_empty_texts.append(text)
+
+        if non_empty_texts:
+            start = time.perf_counter()
+            probs = self._predict_proba(non_empty_texts, batch_size)
+            elapsed_ms = (time.perf_counter() - start) * 1e3
+            logger.debug(
+                "Predicted %d texts in %.1f ms", len(non_empty_texts), elapsed_ms
+            )
+
+            for idx, text, p in zip(non_empty_indices, non_empty_texts, probs):
+                adjusted_p, guard_rule = apply_transactional_guard(text, float(p))
+                item = {
+                    "is_smishing": adjusted_p >= self.threshold,
+                    "spam_probability": round(adjusted_p, 4),
+                    "threshold": self.threshold,
+                    "model_version": self.model_version,
+                    "variant": self.variant,
+                }
+                if guard_rule:
+                    item["guard_applied"] = guard_rule
+                if echo_text:
+                    item["text"] = text
+                results[idx] = item
+
+        return results  # type: ignore[return-value]
 
     def predict_one(self, text: str) -> dict:
         return self.predict(text)[0]

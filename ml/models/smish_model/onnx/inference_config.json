@@ -17,7 +17,7 @@
     "fp32": 0.004038591869175434,
     "int8_retuned": 0.02855372615158558,
     "int8_retuned_rule": "recall>=0.95",
-    "recommended_for_int8": 0.02855372615158558
+    "recommended_for_int8": 0.65
   },
   "models": {
     "fp32": {
